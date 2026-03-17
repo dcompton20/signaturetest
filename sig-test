@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Signature Capture</title>
+  <script src="http://www.sigplusweb.com/SigWebTablet.js"></script>
+</head>
+<body>
+  <canvas id="cnv" width="400" height="100" style="border:1px solid #000;"></canvas>
+  <br><br>
+  <button onclick="startSig()">Request Customer Signature</button>
+  <button onclick="clearSig()">Clear</button>
+  <p id="status"></p>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const ticketId = params.get('ticketId');
+
+    function startSig() {
+      SetTabletState(1, SigWebTablet);
+      ClearTablet();
+      SetDisplayXSize(400);
+      SetDisplayYSize(100);
+      document.getElementById('status').innerText = 'Waiting for customer to sign...';
+
+      var check = setInterval(function() {
+        if (NumberOfTabletPoints() > 0) {
+          clearInterval(check);
+          GetSigImageB64(function(b64) {
+            SetTabletState(0, SigWebTablet);
+            document.getElementById('status').innerText = 'Submitting...';
+            postSignature('data:image/jpeg;base64,' + b64);
+          });
+        }
+      }, 500);
+    }
+
+    function clearSig() {
+      ClearTablet();
+      document.getElementById('status').innerText = '';
+    }
+
+    async function postSignature(base64sig) {
+      try {
+        const tokenRes = await fetch('https://davidaugust25.haloitsm.com/auth/token?tenant=davidaugust25', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'grant_type=client_credentials&client_id=6a75f8ce-80a3-4e56-a7aa-c2fb0f9b63c2&client_secret=7HPbzLtXV86Gy2JSTv4guPoalReZDH9_N4A_A_8Ul_g&scope=edit:tickets'
+        });
+        const tokenData = await tokenRes.json();
+        const token = tokenData.access_token;
+
+        const res = await fetch('https://davidaugust25.haloitsm.com/api/tickets/' + ticketId, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id: parseInt(ticketId),
+            new_customer_signature: base64sig,
+            utcoffset: 240,
+            _refreshresponse: true
+          })
+        });
+
+        if (res.ok) {
+          document.getElementById('status').innerText = '✅ Signature saved!';
+        } else {
+          const err = await res.text();
+          document.getElementById('status').innerText = '❌ Error: ' + err;
+        }
+      } catch(e) {
+        document.getElementById('status').innerText = '❌ Failed: ' + e.message;
+      }
+    }
+  </script>
+</body>
+</html>
