@@ -42,7 +42,7 @@
 
     async function postSignature(base64sig) {
       try {
-        const tokenRes = await fetch('https://davidaugust25.haloitsm.com/auth/token?tenant=davidaugust25', {
+        const tokenRes = await fetch('https://davidaugust25.haloitsm.com/auth/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: 'grant_type=client_credentials&client_id=6a75f8ce-80a3-4e56-a7aa-c2fb0f9b63c2&client_secret=7HPbzLtXV86Gy2JSTv4guPoalReZDH9_N4A_A_8Ul_g&scope=all'
