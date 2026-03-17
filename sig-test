@@ -47,6 +47,7 @@
           body: 'grant_type=client_credentials&client_id=6a75f8ce-80a3-4e56-a7aa-c2fb0f9b63c2&client_secret=7HPbzLtXV86Gy2JSTv4guPoalReZDH9_N4A_A_8Ul_g&scope=edit:tickets'
         });
         const tokenData = await tokenRes.json();
+        console.log(tokenData);
         const token = tokenData.access_token;
 
         const res = await fetch('https://davidaugust25.haloitsm.com/api/tickets/' + ticketId, {
