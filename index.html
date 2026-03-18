@@ -174,12 +174,12 @@
             'Authorization': 'Bearer ' + token,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
+          body: JSON.stringify([{
             id: parseInt(ticketId),
             new_customer_signature: base64sig,
             utcoffset: 240,
             _refreshresponse: true
-          })
+          }])
         });
         if (res.ok) {
           document.getElementById('status').innerText = '✅ Signature saved!';
