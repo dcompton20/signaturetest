@@ -168,7 +168,7 @@
         const tokenData = await tokenRes.json();
         console.log(tokenData);
         const token = tokenData.access_token;
-        const res = await fetch('https://davidaugust25.haloitsm.com/api/tickets/' + ticketId, {
+        const res = await fetch('https://davidaugust25.haloitsm.com/api/tickets', {
           method: 'POST',
           headers: {
             'Authorization': 'Bearer ' + token,
