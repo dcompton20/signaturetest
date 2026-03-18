@@ -1,73 +1,104 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Signature Capture</title>
+  <title>Customer Signature</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    #cnv { border: 1px solid #000; cursor: crosshair; }
-    button { margin: 10px 5px 10px 0; padding: 8px 16px; cursor: pointer; }
-    #status { margin-top: 10px; font-weight: bold; }
-
-    /* Modal overlay */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5);
-      z-index: 1000;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
       justify-content: center;
       align-items: center;
+      min-height: 100vh;
+      background: #f5f5f5;
     }
-    .modal-overlay.active { display: flex; }
-    .modal {
+
+    .sig-container {
       background: #fff;
-      border-radius: 8px;
-      padding: 20px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
       text-align: center;
+      max-width: 560px;
+      width: 90%;
     }
-    .modal h3 { margin-top: 0; }
-    .modal canvas {
+
+    .sig-container h2 {
+      margin-bottom: 5px;
+      color: #333;
+    }
+
+    .sig-container p.instructions {
+      color: #666;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+
+    #sigCanvas {
       border: 2px solid #333;
       border-radius: 4px;
       cursor: crosshair;
       display: block;
-      margin: 10px auto;
+      margin: 0 auto 15px;
       touch-action: none;
+      width: 100%;
+      max-width: 500px;
+      height: 200px;
     }
-    .modal button { margin: 5px; padding: 8px 20px; cursor: pointer; }
+
+    .btn-row { margin-top: 10px; }
+
+    .btn-row button {
+      padding: 10px 24px;
+      margin: 5px;
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .btn-clear { background: #e0e0e0; color: #333; }
+    .btn-accept { background: #4CAF50; color: #fff; font-weight: bold; }
+    .btn-accept:disabled { background: #a5d6a7; cursor: not-allowed; }
+
+    #status {
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: bold;
+      min-height: 24px;
+    }
+
+    .status-waiting { color: #1565C0; }
+    .status-submitting { color: #F57C00; }
+    .status-success { color: #2E7D32; }
+    .status-error { color: #C62828; }
+    .status-closing { color: #666; }
   </style>
 </head>
 <body>
-  <h2>Signature Capture</h2>
-  <canvas id="cnv" width="400" height="100" style="border:1px solid #000;"></canvas>
-  <br><br>
-  <button onclick="openSignatureModal()">Request Customer Signature</button>
-  <button onclick="clearPreview()">Clear</button>
-  <button onclick="postSignature('data:image/jpeg;base64,test123')">Test API</button>
-  <p id="status"></p>
-
-  <!-- Signature Modal -->
-  <div class="modal-overlay" id="sigModal">
-    <div class="modal">
-      <h3>Sign Below</h3>
-      <canvas id="sigCanvas" width="500" height="200"></canvas>
-      <br>
-      <button onclick="clearModal()">Clear</button>
-      <button onclick="cancelModal()">Cancel</button>
-      <button onclick="acceptSignature()" style="background:#4CAF50;color:#fff;">Accept</button>
+  <div class="sig-container">
+    <h2>Customer Signature</h2>
+    <p class="instructions">Please sign in the box below and tap <strong>Accept &amp; Submit</strong>.</p>
+    <canvas id="sigCanvas" width="500" height="200"></canvas>
+    <div class="btn-row">
+      <button class="btn-clear" onclick="clearCanvas()">Clear</button>
+      <button class="btn-accept" id="btnAccept" onclick="acceptSignature()">Accept &amp; Submit</button>
     </div>
+    <p id="status" class="status-waiting">Waiting for signature...</p>
   </div>
 
   <script>
     const params = new URLSearchParams(window.location.search);
     const ticketId = params.get('ticketId');
+    const statusEl = document.getElementById('status');
+    const btnAccept = document.getElementById('btnAccept');
 
-    // --- Modal drawing logic ---
+    // --- Canvas drawing logic ---
     const sigCanvas = document.getElementById('sigCanvas');
     const sigCtx = sigCanvas.getContext('2d');
     let drawing = false;
+    let hasStrokes = false;
 
     sigCtx.lineWidth = 2;
     sigCtx.lineCap = 'round';
@@ -75,16 +106,20 @@
 
     function getPos(e) {
       const rect = sigCanvas.getBoundingClientRect();
+      const scaleX = sigCanvas.width / rect.width;
+      const scaleY = sigCanvas.height / rect.height;
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       return {
-        x: clientX - rect.left,
-        y: clientY - rect.top
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
       };
     }
 
+    // Mouse events
     sigCanvas.addEventListener('mousedown', (e) => {
       drawing = true;
+      hasStrokes = true;
       const pos = getPos(e);
       sigCtx.beginPath();
       sigCtx.moveTo(pos.x, pos.y);
@@ -98,10 +133,11 @@
     sigCanvas.addEventListener('mouseup', () => drawing = false);
     sigCanvas.addEventListener('mouseleave', () => drawing = false);
 
-    // Touch support
+    // Touch events
     sigCanvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
       drawing = true;
+      hasStrokes = true;
       const pos = getPos(e);
       sigCtx.beginPath();
       sigCtx.moveTo(pos.x, pos.y);
@@ -115,24 +151,26 @@
     });
     sigCanvas.addEventListener('touchend', () => drawing = false);
 
-    // --- Modal controls ---
-    function openSignatureModal() {
-      clearModal();
-      document.getElementById('sigModal').classList.add('active');
-      document.getElementById('status').innerText = 'Waiting for customer to sign...';
-    }
-
-    function clearModal() {
+    // --- Controls ---
+    function clearCanvas() {
       sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+      hasStrokes = false;
+      statusEl.className = 'status-waiting';
+      statusEl.innerText = 'Waiting for signature...';
+      btnAccept.disabled = false;
     }
 
-    function cancelModal() {
-      document.getElementById('sigModal').classList.remove('active');
-      document.getElementById('status').innerText = '';
-    }
+    async function acceptSignature() {
+      if (!hasStrokes) {
+        statusEl.className = 'status-error';
+        statusEl.innerText = 'Please sign before submitting.';
+        return;
+      }
 
-    function acceptSignature() {
-      // Create a temp canvas with white background + signature for JPEG export
+      // Disable button to prevent double submit
+      btnAccept.disabled = true;
+
+      // Create JPEG with white background
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = sigCanvas.width;
       tempCanvas.height = sigCanvas.height;
@@ -141,30 +179,13 @@
       tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
       tempCtx.drawImage(sigCanvas, 0, 0);
       const dataUrl = tempCanvas.toDataURL('image/jpeg');
-      document.getElementById('sigModal').classList.remove('active');
 
-      // Copy to preview canvas
-      const preview = document.getElementById('cnv');
-      const previewCtx = preview.getContext('2d');
-      const img = new Image();
-      img.onload = function() {
-        previewCtx.clearRect(0, 0, preview.width, preview.height);
-        previewCtx.drawImage(img, 0, 0, preview.width, preview.height);
-      };
-      img.src = dataUrl;
-
-      // Submit to API
-      document.getElementById('status').innerText = 'Submitting...';
-      postSignature(dataUrl);
+      // Submit
+      statusEl.className = 'status-submitting';
+      statusEl.innerText = 'Submitting signature...';
+      await postSignature(dataUrl);
     }
 
-    function clearPreview() {
-      const preview = document.getElementById('cnv');
-      preview.getContext('2d').clearRect(0, 0, preview.width, preview.height);
-      document.getElementById('status').innerText = '';
-    }
-
-    // --- API submission (unchanged) ---
     async function postSignature(base64sig) {
       try {
         const tokenRes = await fetch('https://davidaugust25.haloitsm.com/auth/token', {
@@ -173,8 +194,8 @@
           body: 'grant_type=client_credentials&client_id=6a75f8ce-80a3-4e56-a7aa-c2fb0f9b63c2&client_secret=7HPbzLtXV86Gy2JSTv4guPoalReZDH9_N4A_A_8Ul_g&scope=all'
         });
         const tokenData = await tokenRes.json();
-        console.log(tokenData);
         const token = tokenData.access_token;
+
         const res = await fetch('https://davidaugust25.haloitsm.com/api/tickets', {
           method: 'POST',
           headers: {
@@ -188,14 +209,27 @@
             _refreshresponse: true
           }])
         });
+
         if (res.ok) {
-          document.getElementById('status').innerText = '✅ Signature saved!';
+          statusEl.className = 'status-success';
+          statusEl.innerText = '✅ Signature saved! Closing this window...';
+          // Auto-close after brief delay so user sees confirmation
+          setTimeout(() => {
+            window.close();
+            // Fallback if window.close() is blocked by the browser
+            statusEl.className = 'status-closing';
+            statusEl.innerText = '✅ Signature saved! You may close this tab.';
+          }, 2000);
         } else {
           const err = await res.text();
-          document.getElementById('status').innerText = '❌ Error: ' + err;
+          statusEl.className = 'status-error';
+          statusEl.innerText = '❌ Error: ' + err;
+          btnAccept.disabled = false;
         }
       } catch(e) {
-        document.getElementById('status').innerText = '❌ Failed: ' + e.message;
+        statusEl.className = 'status-error';
+        statusEl.innerText = '❌ Failed: ' + e.message;
+        btnAccept.disabled = false;
       }
     }
   </script>
