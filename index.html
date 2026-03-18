@@ -132,8 +132,15 @@
     }
 
     function acceptSignature() {
-      // Convert modal canvas to base64 JPEG
-      const dataUrl = sigCanvas.toDataURL('image/jpeg');
+      // Create a temp canvas with white background + signature for JPEG export
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = sigCanvas.width;
+      tempCanvas.height = sigCanvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.fillStyle = '#FFFFFF';
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+      tempCtx.drawImage(sigCanvas, 0, 0);
+      const dataUrl = tempCanvas.toDataURL('image/jpeg');
       document.getElementById('sigModal').classList.remove('active');
 
       // Copy to preview canvas
