@@ -188,7 +188,7 @@
 
     async function postSignature(base64sig) {
       try {
-        const tokenRes = await fetch('https://davidaugust25.haloitsm.com/auth/token?tenant=legacybank', {
+        const tokenRes = await fetch('https://legacybank.haloitsm.com/auth/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: 'grant_type=client_credentials&client_id=be5bbd56-b2be-44be-84e2-7d094fdd454f&client_secret=dpYZEnbqYP1hFW6b5npOdpIt0LqcEfWHhOuGoX7B7MM&scope=all'
@@ -196,7 +196,7 @@
         const tokenData = await tokenRes.json();
         const token = tokenData.access_token;
 
-        const res = await fetch('https://davidaugust25.haloitsm.com/api/tickets', {
+        const res = await fetch('https://legacybank.haloitsm.com/api/tickets', {
           method: 'POST',
           headers: {
             'Authorization': 'Bearer ' + token,
