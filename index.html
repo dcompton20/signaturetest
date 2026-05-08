@@ -191,7 +191,7 @@
         const tokenRes = await fetch('https://davidaugust25.haloitsm.com/auth/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'grant_type=client_credentials&client_id=16248765-83ae-42b3-a3eb-c21a9e239cc9&client_secret=q_ofegMyYvT1-bn-tIxNK3IaOwCGTPKMAayrjwznSz0&scope=all'
+          body: 'grant_type=client_credentials&client_id=be5bbd56-b2be-44be-84e2-7d094fdd454f&client_secret=eNZFRe86BGsgSPEMFyP3LwKCbNPAp35GW0MSkvifKqM&scope=all'
         });
         const tokenData = await tokenRes.json();
         const token = tokenData.access_token;
