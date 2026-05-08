@@ -1,28 +1,237 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <title>Customer Signature</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    .iframe-container {
-      position: relative;
-      width: 100%;
-      height: 100vh;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: #f5f5f5;
     }
-    .iframe-container iframe {
+
+    .sig-container {
+      background: #fff;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      text-align: center;
+      max-width: 560px;
+      width: 90%;
+    }
+
+    .sig-container h2 {
+      margin-bottom: 5px;
+      color: #333;
+    }
+
+    .sig-container p.instructions {
+      color: #666;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+
+    #sigCanvas {
+      border: 2px solid #333;
+      border-radius: 4px;
+      cursor: crosshair;
+      display: block;
+      margin: 0 auto 15px;
+      touch-action: none;
       width: 100%;
-      height: 100%;
+      max-width: 500px;
+      height: 200px;
+    }
+
+    .btn-row { margin-top: 10px; }
+
+    .btn-row button {
+      padding: 10px 24px;
+      margin: 5px;
       border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      cursor: pointer;
     }
+
+    .btn-clear { background: #e0e0e0; color: #333; }
+    .btn-accept { background: #4CAF50; color: #fff; font-weight: bold; }
+    .btn-accept:disabled { background: #a5d6a7; cursor: not-allowed; }
+
+    #status {
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: bold;
+      min-height: 24px;
+    }
+
+    .status-waiting { color: #1565C0; }
+    .status-submitting { color: #F57C00; }
+    .status-success { color: #2E7D32; }
+    .status-error { color: #C62828; }
+    .status-closing { color: #666; }
   </style>
 </head>
 <body>
-  <div class="iframe-container">
-    <iframe
-      src="https://davidaugust25.haloitsm.com/portal/dashboard?id=4&publishedid=b2a1ab8d-95db-4ca4-a542-87275a508d25"
-      allowfullscreen
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      referrerpolicy="no-referrer-when-downgrade">
-      <p>Your browser doesn't support iframes. <a href="YOUR_LINK_HERE">Open the link directly</a>.</p>
-    </iframe>
+  <div class="sig-container">
+    <h2>Customer Signature</h2>
+    <p class="instructions">Please sign in the box below and tap <strong>Accept &amp; Submit</strong>.</p>
+    <canvas id="sigCanvas" width="500" height="200"></canvas>
+    <div class="btn-row">
+      <button class="btn-clear" onclick="clearCanvas()">Clear</button>
+      <button class="btn-accept" id="btnAccept" onclick="acceptSignature()">Accept &amp; Submit</button>
+    </div>
+    <p id="status" class="status-waiting">Waiting for signature...</p>
   </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const ticketId = params.get('ticketId');
+    const statusEl = document.getElementById('status');
+    const btnAccept = document.getElementById('btnAccept');
+
+    // --- Canvas drawing logic ---
+    const sigCanvas = document.getElementById('sigCanvas');
+    const sigCtx = sigCanvas.getContext('2d');
+    let drawing = false;
+    let hasStrokes = false;
+
+    sigCtx.lineWidth = 2;
+    sigCtx.lineCap = 'round';
+    sigCtx.strokeStyle = '#000';
+
+    function getPos(e) {
+      const rect = sigCanvas.getBoundingClientRect();
+      const scaleX = sigCanvas.width / rect.width;
+      const scaleY = sigCanvas.height / rect.height;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      };
+    }
+
+    // Mouse events
+    sigCanvas.addEventListener('mousedown', (e) => {
+      drawing = true;
+      hasStrokes = true;
+      const pos = getPos(e);
+      sigCtx.beginPath();
+      sigCtx.moveTo(pos.x, pos.y);
+    });
+    sigCanvas.addEventListener('mousemove', (e) => {
+      if (!drawing) return;
+      const pos = getPos(e);
+      sigCtx.lineTo(pos.x, pos.y);
+      sigCtx.stroke();
+    });
+    sigCanvas.addEventListener('mouseup', () => drawing = false);
+    sigCanvas.addEventListener('mouseleave', () => drawing = false);
+
+    // Touch events
+    sigCanvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      drawing = true;
+      hasStrokes = true;
+      const pos = getPos(e);
+      sigCtx.beginPath();
+      sigCtx.moveTo(pos.x, pos.y);
+    });
+    sigCanvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (!drawing) return;
+      const pos = getPos(e);
+      sigCtx.lineTo(pos.x, pos.y);
+      sigCtx.stroke();
+    });
+    sigCanvas.addEventListener('touchend', () => drawing = false);
+
+    // --- Controls ---
+    function clearCanvas() {
+      sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+      hasStrokes = false;
+      statusEl.className = 'status-waiting';
+      statusEl.innerText = 'Waiting for signature...';
+      btnAccept.disabled = false;
+    }
+
+    async function acceptSignature() {
+      if (!hasStrokes) {
+        statusEl.className = 'status-error';
+        statusEl.innerText = 'Please sign before submitting.';
+        return;
+      }
+
+      // Disable button to prevent double submit
+      btnAccept.disabled = true;
+
+      // Create JPEG with white background
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = sigCanvas.width;
+      tempCanvas.height = sigCanvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.fillStyle = '#FFFFFF';
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+      tempCtx.drawImage(sigCanvas, 0, 0);
+      const dataUrl = tempCanvas.toDataURL('image/jpeg');
+
+      // Submit
+      statusEl.className = 'status-submitting';
+      statusEl.innerText = 'Submitting signature...';
+      await postSignature(dataUrl);
+    }
+
+    async function postSignature(base64sig) {
+      try {
+        const tokenRes = await fetch('https://davidaugust25.haloitsm.com/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'grant_type=client_credentials&client_id=6a75f8ce-80a3-4e56-a7aa-c2fb0f9b63c2&client_secret=7HPbzLtXV86Gy2JSTv4guPoalReZDH9_N4A_A_8Ul_g&scope=all'
+        });
+        const tokenData = await tokenRes.json();
+        const token = tokenData.access_token;
+
+        const res = await fetch('https://davidaugust25.haloitsm.com/api/tickets', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify([{
+            id: parseInt(ticketId),
+            new_customer_signature: base64sig,
+            utcoffset: 240,
+            _refreshresponse: true
+          }])
+        });
+
+        if (res.ok) {
+          statusEl.className = 'status-success';
+          statusEl.innerText = '✅ Signature saved! Closing this window...';
+          // Auto-close after brief delay so user sees confirmation
+          setTimeout(() => {
+            window.close();
+            // Fallback if window.close() is blocked by the browser
+            statusEl.className = 'status-closing';
+            statusEl.innerText = '✅ Signature saved! You may close this tab.';
+          }, 2000);
+        } else {
+          const err = await res.text();
+          statusEl.className = 'status-error';
+          statusEl.innerText = '❌ Error: ' + err;
+          btnAccept.disabled = false;
+        }
+      } catch(e) {
+        statusEl.className = 'status-error';
+        statusEl.innerText = '❌ Failed: ' + e.message;
+        btnAccept.disabled = false;
+      }
+    }
+  </script>
 </body>
 </html>
