@@ -170,7 +170,7 @@
       // Disable button to prevent double submit
       btnAccept.disabled = true;
 
-      // Create JPEG with white background
+      // Create PNG with white background
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = sigCanvas.width;
       tempCanvas.height = sigCanvas.height;
@@ -178,7 +178,8 @@
       tempCtx.fillStyle = '#FFFFFF';
       tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
       tempCtx.drawImage(sigCanvas, 0, 0);
-      const dataUrl = tempCanvas.toDataURL('image/jpeg');
+      // Always export as PNG data URL — produces "data:image/png;base64,..."
+      const dataUrl = tempCanvas.toDataURL('image/png');
 
       // Submit
       statusEl.className = 'status-submitting';
@@ -187,11 +188,18 @@
     }
 
     async function postSignature(base64sig) {
+      // Defense-in-depth: guarantee the payload is always a full data URL.
+      // If anything ever hands this function raw base64 (no prefix), prepend
+      // the PNG data URL header so Halo always receives "data:image/png;base64,...".
+      if (!base64sig.startsWith('data:image/')) {
+        base64sig = 'data:image/png;base64,' + base64sig;
+      }
+
       try {
         const tokenRes = await fetch('https://legacybank.haloitsm.com/auth/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'grant_type=client_credentials&client_id=<<client_id>>&client_secret=<<client_secret>>&scope=all'
+          body: 'grant_type=client_credentials&client_id=be5bbd56-b2be-44be-84e2-7d094fdd454f&client_secret=pAhmFIrS4ImlWIL8PFpGb493PBdKBxFuLG7TadlkjbQ&scope=all'
         });
         const tokenData = await tokenRes.json();
         const token = tokenData.access_token;
