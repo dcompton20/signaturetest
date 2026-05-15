@@ -204,7 +204,7 @@
         const tokenData = await tokenRes.json();
         const token = tokenData.access_token;
 
-        const res = await fetch('https://legacybank.haloitsm.com/api/actions', {
+        const res = await fetch('https://legacybank.haloitsm.com/api/tickets', {
           method: 'POST',
           headers: {
             'Authorization': 'Bearer ' + token,
@@ -212,10 +212,7 @@
           },
           body: JSON.stringify([{
             ticket_id: parseInt(ticketId),
-            note_html: base64sig,
-            utcoffset: 240,
-            _refreshresponse: true,
-            outcome_id: 7
+            new_customer_signature: base64sig
           }])
         });
 
